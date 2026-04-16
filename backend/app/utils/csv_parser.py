@@ -5,63 +5,87 @@ import re
 from openpyxl import load_workbook
 
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
+HEADER_KEYWORDS = {"email", "e-mail", "mail", "почта", "адрес", "address"}
+
+
+def _extract_email(cell) -> str | None:
+    if cell is None:
+        return None
+    value = str(cell).strip().lower()
+    if not value:
+        return None
+    return value if EMAIL_RE.match(value) else None
 
 
 def parse_emails_from_csv(content: bytes) -> list[str]:
     text = content.decode("utf-8-sig", errors="replace")
     reader = csv.reader(io.StringIO(text))
-    emails = []
-    email_col = None
+    rows = [row for row in reader if row]
+    if not rows:
+        return []
 
-    for i, row in enumerate(reader):
-        if i == 0:
-            for j, cell in enumerate(row):
-                if cell.strip().lower() in ("email", "e-mail", "mail", "почта", "адрес"):
-                    email_col = j
-                    break
-            if email_col is None:
-                for j, cell in enumerate(row):
-                    if EMAIL_RE.match(cell.strip()):
-                        email_col = j
-                        emails.append(cell.strip().lower())
-                        break
-                if email_col is None:
-                    email_col = 0
-                    if EMAIL_RE.match(row[0].strip()):
-                        emails.append(row[0].strip().lower())
-            continue
+    email_col = 0
+    first_row = rows[0]
+    first_is_header = any(
+        str(c).strip().lower() in HEADER_KEYWORDS for c in first_row
+    )
 
+    if first_is_header:
+        for j, cell in enumerate(first_row):
+            if str(cell).strip().lower() in HEADER_KEYWORDS:
+                email_col = j
+                break
+        data_rows = rows[1:]
+    else:
+        for j, cell in enumerate(first_row):
+            if _extract_email(cell):
+                email_col = j
+                break
+        data_rows = rows
+
+    emails: list[str] = []
+    for row in data_rows:
         if email_col < len(row):
-            candidate = row[email_col].strip().lower()
-            if candidate and EMAIL_RE.match(candidate):
-                emails.append(candidate)
-
+            email = _extract_email(row[email_col])
+            if email:
+                emails.append(email)
     return emails
 
 
 def parse_emails_from_xlsx(content: bytes) -> list[str]:
-    wb = load_workbook(filename=io.BytesIO(content), read_only=True)
+    wb = load_workbook(filename=io.BytesIO(content), read_only=True, data_only=True)
     ws = wb.active
-    emails = []
-    email_col = None
-
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
-        if i == 0:
-            for j, cell in enumerate(row):
-                val = str(cell or "").strip().lower()
-                if val in ("email", "e-mail", "mail", "почта", "адрес"):
-                    email_col = j
-                    break
-            if email_col is None:
-                email_col = 0
-            continue
-
-        if email_col < len(row) and row[email_col]:
-            candidate = str(row[email_col]).strip().lower()
-            if candidate and EMAIL_RE.match(candidate):
-                emails.append(candidate)
-
+    rows = list(ws.iter_rows(values_only=True))
     wb.close()
+
+    if not rows:
+        return []
+
+    email_col = 0
+    first_row = rows[0]
+    first_is_header = any(
+        str(c or "").strip().lower() in HEADER_KEYWORDS for c in first_row
+    )
+
+    if first_is_header:
+        for j, cell in enumerate(first_row):
+            if str(cell or "").strip().lower() in HEADER_KEYWORDS:
+                email_col = j
+                break
+        data_rows = rows[1:]
+    else:
+        for j, cell in enumerate(first_row):
+            if _extract_email(cell):
+                email_col = j
+                break
+        data_rows = rows
+
+    emails: list[str] = []
+    for row in data_rows:
+        if email_col < len(row):
+            email = _extract_email(row[email_col])
+            if email:
+                emails.append(email)
     return emails
 
 
