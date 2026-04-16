@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCampaign, pauseCampaign, stopCampaign, getCampaignStats } from "@/api/campaigns";
 import { useCampaignProgress } from "@/hooks/useCampaignProgress";
@@ -7,51 +7,56 @@ import Badge from "@/components/common/Badge";
 import Spinner from "@/components/common/Spinner";
 import { Pause, Square, Wifi, WifiOff } from "lucide-react";
 import { formatDuration, formatNumber } from "@/utils/formatters";
-import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS } from "@/utils/constants";
+import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, POLLING_INTERVALS } from "@/utils/constants";
+import { handleError } from "@/utils/errors";
 import toast from "react-hot-toast";
 
 export default function CampaignMonitorPage() {
   const { id } = useParams<{ id: string }>();
-  const campaignId = Number(id);
-  const navigate = useNavigate();
+  const campaignId = id ? Number(id) : null;
   const qc = useQueryClient();
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ["campaign", campaignId],
-    queryFn: () => getCampaign(campaignId),
-    refetchInterval: 5000,
+    queryFn: () => getCampaign(campaignId!),
+    refetchInterval: POLLING_INTERVALS.CAMPAIGN,
+    enabled: !!campaignId,
   });
 
   const { data: stats } = useQuery({
     queryKey: ["campaignStats", campaignId],
-    queryFn: () => getCampaignStats(campaignId),
-    refetchInterval: 3000,
+    queryFn: () => getCampaignStats(campaignId!),
+    refetchInterval: POLLING_INTERVALS.CAMPAIGN_STATS,
+    enabled: !!campaignId,
   });
 
   const { progress, isConnected } = useCampaignProgress(campaignId);
 
   const pauseMut = useMutation({
-    mutationFn: () => pauseCampaign(campaignId),
+    mutationFn: () => pauseCampaign(campaignId!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["campaign", campaignId] });
       toast.success("Рассылка на паузе");
     },
+    onError: (e) => handleError(e, "Не удалось поставить на паузу"),
   });
 
   const stopMut = useMutation({
-    mutationFn: () => stopCampaign(campaignId),
+    mutationFn: () => stopCampaign(campaignId!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["campaign", campaignId] });
       toast.success("Рассылка остановлена");
     },
+    onError: (e) => handleError(e, "Не удалось остановить"),
   });
 
+  if (!campaignId) return <p className="p-8">Некорректный ID кампании</p>;
   if (isLoading) return <Spinner />;
   if (!campaign) return <p>Кампания не найдена</p>;
 
-  const sent = progress.sent || campaign.sent_count;
-  const failed = progress.failed || campaign.failed_count;
-  const total = progress.total || campaign.total_contacts;
+  const sent = progress.sent ?? campaign.sent_count;
+  const failed = progress.failed ?? campaign.failed_count;
+  const total = progress.total ?? campaign.total_contacts;
   const denom = campaign.valid_contacts > 0 ? campaign.valid_contacts : total;
   const pct = denom > 0 ? Math.round((sent / denom) * 100) : 0;
 
@@ -135,7 +140,10 @@ export default function CampaignMonitorPage() {
         {progress.log.length > 0 ? (
           <div className="divide-y divide-gray-50 text-sm">
             {progress.log.map((entry, i) => (
-              <div key={i} className="flex items-center justify-between px-6 py-3">
+              <div
+                key={`${entry.contact}-${entry.time}-${i}`}
+                className="flex items-center justify-between px-6 py-3"
+              >
                 <div>
                   <span className="font-medium text-gray-900">{entry.contact}</span>
                   <span className="ml-2 text-gray-400">{entry.mailbox}</span>

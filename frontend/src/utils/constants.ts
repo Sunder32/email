@@ -26,3 +26,9 @@ export const SEND_STATUS_LABELS: Record<string, string> = {
   failed: "Ошибка",
   skipped: "Пропущено",
 };
+
+export const POLLING_INTERVALS = {
+  CAMPAIGN: 5000,
+  CAMPAIGN_STATS: 3000,
+  WS_RECONNECT: 3000,
+} as const;

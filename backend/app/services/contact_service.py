@@ -84,9 +84,7 @@ async def get_pending_valid_contacts(db: AsyncSession, campaign_id: int) -> list
         Contact.campaign_id == campaign_id,
         Contact.status == "pending",
     )
-    if campaign and campaign.skip_validation:
-        pass
-    else:
+    if not (campaign and campaign.skip_validation):
         query = query.where(or_(Contact.is_valid == True, Contact.is_valid.is_(None)))
 
     result = await db.execute(query.order_by(Contact.id))

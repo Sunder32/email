@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface Props {
@@ -9,6 +9,15 @@ interface Props {
 }
 
 export default function Modal({ open, onClose, title, children }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -17,7 +26,7 @@ export default function Modal({ open, onClose, title, children }: Props) {
       <div className="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100">
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100" aria-label="Close">
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>

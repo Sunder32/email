@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.dependencies.pagination import PaginationParams
@@ -27,11 +28,23 @@ async def upload_contacts(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     content = await file.read()
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max {settings.MAX_UPLOAD_SIZE_MB} MB.",
+        )
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
     try:
         return await contact_service.upload_contacts(db, campaign_id, file.filename or "file.csv", content)
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Could not decode file — is it a valid CSV/XLSX?")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Upload error: {e}")
 
 
 @router.get("", response_model=list[ContactRead])

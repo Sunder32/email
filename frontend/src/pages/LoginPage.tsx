@@ -5,6 +5,7 @@ import Button from "@/components/common/Button";
 import Input from "@/components/common/Input";
 import { Send } from "lucide-react";
 import toast from "react-hot-toast";
+import { handleError } from "@/utils/errors";
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -24,8 +25,8 @@ export default function LoginPage() {
         await login(username, password);
       }
       navigate("/");
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Ошибка");
+    } catch (err) {
+      handleError(err);
     } finally {
       setLoading(false);
     }

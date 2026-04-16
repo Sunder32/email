@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createCampaign, startCampaign } from "@/api/campaigns";
 import { uploadContacts, validateContacts } from "@/api/contacts";
-import { generateVariations, getVariations } from "@/api/variations";
+import { generateVariations } from "@/api/variations";
 import Button from "@/components/common/Button";
 import Input from "@/components/common/Input";
 import Spinner from "@/components/common/Spinner";
 import { Upload, Sparkles, CheckCircle, Play } from "lucide-react";
 import toast from "react-hot-toast";
 import { useDropzone } from "react-dropzone";
+import { handleError } from "@/utils/errors";
 
 type Step = "compose" | "upload" | "validate" | "variations" | "launch";
 
@@ -45,7 +46,7 @@ export default function CampaignCreatePage() {
       setStep("upload");
       toast.success("Кампания создана");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка"),
+    onError: (e) => handleError(e),
   });
 
   const uploadMut = useMutation({
@@ -55,7 +56,7 @@ export default function CampaignCreatePage() {
       setStep("validate");
       toast.success(`Загружено ${res.parsed} контактов`);
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка загрузки"),
+    onError: (e) => handleError(e, "Ошибка загрузки"),
   });
 
   const validateMut = useMutation({
@@ -64,6 +65,7 @@ export default function CampaignCreatePage() {
       toast.success("Валидация запущена");
       setStep("variations");
     },
+    onError: (e) => handleError(e, "Ошибка валидации"),
   });
 
   const genMut = useMutation({
@@ -72,6 +74,7 @@ export default function CampaignCreatePage() {
       toast.success("Генерация вариаций запущена");
       setStep("launch");
     },
+    onError: (e) => handleError(e, "Ошибка генерации вариаций"),
   });
 
   const startMut = useMutation({
@@ -80,7 +83,7 @@ export default function CampaignCreatePage() {
       qc.invalidateQueries({ queryKey: ["campaigns"] });
       navigate(`/campaigns/${campaignId}/monitor`);
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка запуска"),
+    onError: (e) => handleError(e, "Ошибка запуска"),
   });
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

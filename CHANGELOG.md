@@ -18,3 +18,18 @@
 - MVP-0014: "Mark all valid" action to override validation results for campaigns where SMTP check is unreliable.
 - MVP-0015: Retry on transient SMTP errors (4xx, timeout, connection reset) with exponential backoff; permanent (5xx) failures fail immediately.
 - MVP-0016: Progress bar now shows sent/total (not sent/valid), and dashboard includes invalid-count statistic.
+- MVP-0017: Fix blocking `time.sleep()` in async `send_campaign` — now uses `await asyncio.sleep` and `asyncio.to_thread` for SMTP so the event loop is never blocked.
+- MVP-0018: Real-time dashboard now actually works — Celery worker publishes events to Redis, FastAPI subscribes on startup and forwards them to WebSocket clients (previous code had `ws_broadcast=None` all the time).
+- MVP-0019: Celery tasks now `await engine.dispose()` in `finally`, fixing DB-pool leak after many runs.
+- MVP-0020: Mailbox/domain counters are now incremented via atomic SQL (`sent_this_hour = sent_this_hour + 1`) — race-safe under concurrent workers.
+- MVP-0021: WebSocket reconnect timer cleaned up on unmount — fixes connection leak on navigation.
+- MVP-0022: Upload size limit (10 MB configurable), empty-file detection, specific error types for bad CSV/XLSX.
+- MVP-0023: JWT_SECRET_KEY and FERNET_KEY are now mandatory — app refuses to start with defaults.
+- MVP-0024: CORS allow_methods/allow_headers restricted from wildcard to actual needs.
+- MVP-0025: Campaign `start_campaign` preserves `valid_contacts` from prior validation instead of overwriting with `total_contacts`.
+- MVP-0026: `validation_service` no longer sets `valid_contacts` twice — uses a single `COUNT` query.
+- MVP-0027: Falsy-zero bug fixed on monitor page (`??` instead of `||`); NaN campaign ID guarded.
+- MVP-0028: `onError` handlers on all frontend mutations (pause/stop/validate/generate/upload) via shared `handleError` helper.
+- MVP-0029: Body-scroll lock on open Modal; `key` in log feed uses unique composite instead of array index.
+- MVP-0030: Hardcoded values extracted to config — SMTP timeouts, retry backoff, polling intervals, upload size limit.
+- MVP-0031: Dead code removed — unused `random` import, `User` import in domains router, `index` param in `pick_variation`, `pass` branch.

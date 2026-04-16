@@ -55,7 +55,8 @@ async def delete_campaign(db: AsyncSession, campaign_id: int) -> None:
 async def start_campaign(db: AsyncSession, campaign_id: int) -> CampaignRead:
     campaign = await get_campaign(db, campaign_id)
     if campaign.status == CampaignStatus.DRAFT:
-        campaign.valid_contacts = campaign.total_contacts
+        if campaign.skip_validation or campaign.valid_contacts == 0:
+            campaign.valid_contacts = campaign.total_contacts
         campaign.status = CampaignStatus.READY
         await db.commit()
         await db.refresh(campaign)

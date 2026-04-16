@@ -4,6 +4,7 @@ export interface WsProgressMessage {
     sent: number;
     failed: number;
     total: number;
+    valid?: number;
     current_mailbox: string;
     current_domain: string;
     last_contact: string;

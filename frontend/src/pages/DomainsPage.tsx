@@ -10,7 +10,8 @@ import Badge from "@/components/common/Badge";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Plus, Trash2, FlaskConical, ChevronDown, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
-import type { Domain } from "@/types/domain";
+import { handleError } from "@/utils/errors";
+import type { MailboxCreate } from "@/types/domain";
 
 export default function DomainsPage() {
   const qc = useQueryClient();
@@ -27,17 +28,17 @@ export default function DomainsPage() {
       setShowAddDomain(false);
       toast.success("Домен добавлен");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка"),
+    onError: (e) => handleError(e),
   });
 
   const addMailboxMut = useMutation({
-    mutationFn: ({ domainId, data }: { domainId: number; data: any }) => createMailbox(domainId, data),
+    mutationFn: ({ domainId, data }: { domainId: number; data: MailboxCreate }) => createMailbox(domainId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["domains"] });
       setShowAddMailbox(null);
       toast.success("Ящик добавлен");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка"),
+    onError: (e) => handleError(e),
   });
 
   const deleteMut = useMutation({
@@ -263,7 +264,7 @@ function AddMailboxModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: MailboxCreate) => void;
   loading: boolean;
 }) {
   const [form, setForm] = useState({

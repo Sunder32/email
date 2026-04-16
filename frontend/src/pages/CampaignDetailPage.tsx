@@ -20,6 +20,7 @@ import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, SEND_STATUS_LABELS } fr
 import { formatNumber, formatDate, truncate } from "@/utils/formatters";
 import type { CampaignReport } from "@/types/campaign";
 import toast from "react-hot-toast";
+import { handleError } from "@/utils/errors";
 
 type Tab = "logs" | "contacts" | "variations";
 
@@ -71,7 +72,7 @@ export default function CampaignDetailPage() {
   const startMut = useMutation({
     mutationFn: () => startCampaign(campaignId),
     onSuccess: () => navigate(`/campaigns/${campaignId}/monitor`),
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка"),
+    onError: (e) => handleError(e),
   });
 
   const deleteMut = useMutation({
@@ -91,7 +92,7 @@ export default function CampaignDetailPage() {
       qc.invalidateQueries({ queryKey: ["contacts", campaignId] });
       toast.success(`Помечено как валидные: ${res.marked_valid}`);
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail || "Ошибка"),
+    onError: (e) => handleError(e),
   });
 
   if (isLoading) return <Spinner />;

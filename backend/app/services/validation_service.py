@@ -44,11 +44,12 @@ async def validate_campaign_contacts(db: AsyncSession, campaign_id: int, progres
                     invalid=invalid_count,
                 )
 
-    campaign.valid_contacts = valid_count
-    already_valid = await db.execute(
-        select(Contact)
-        .where(Contact.campaign_id == campaign_id, Contact.is_valid == True)
+    from sqlalchemy import func
+    count_res = await db.execute(
+        select(func.count(Contact.id)).where(
+            Contact.campaign_id == campaign_id, Contact.is_valid == True
+        )
     )
-    campaign.valid_contacts = len(list(already_valid.scalars().all()))
+    campaign.valid_contacts = count_res.scalar() or 0
     campaign.status = CampaignStatus.READY
     await db.commit()
