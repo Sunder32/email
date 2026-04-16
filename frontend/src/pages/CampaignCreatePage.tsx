@@ -25,6 +25,7 @@ export default function CampaignCreatePage() {
   const [rotateN, setRotateN] = useState(5);
   const [delayMin, setDelayMin] = useState(5);
   const [delayMax, setDelayMax] = useState(30);
+  const [skipValidation, setSkipValidation] = useState(false);
 
   const [uploadResult, setUploadResult] = useState<{ total: number; parsed: number; duplicates: number } | null>(null);
 
@@ -37,6 +38,7 @@ export default function CampaignCreatePage() {
         rotate_every_n: rotateN,
         delay_min_sec: delayMin,
         delay_max_sec: delayMax,
+        skip_validation: skipValidation,
       }),
     onSuccess: (c) => {
       setCampaignId(c.id);
@@ -125,6 +127,20 @@ export default function CampaignCreatePage() {
             <Input label="Задержка мин (сек)" type="number" value={delayMin} onChange={(e) => setDelayMin(+e.target.value)} />
             <Input label="Задержка макс (сек)" type="number" value={delayMax} onChange={(e) => setDelayMax(+e.target.value)} />
           </div>
+          <label className="flex items-start gap-2 rounded-lg bg-yellow-50 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={skipValidation}
+              onChange={(e) => setSkipValidation(e.target.checked)}
+              className="mt-0.5"
+            />
+            <div className="text-sm">
+              <div className="font-medium text-gray-900">Пропустить валидацию адресов</div>
+              <div className="text-xs text-gray-600">
+                Письма уйдут на все загруженные адреса без проверки. Рекомендуется включить, если вы уверены в списке и валидация ложно блокирует живые адреса (SMTP-проверка ненадёжна с VPS).
+              </div>
+            </div>
+          </label>
           <div className="flex justify-end">
             <Button onClick={() => createMut.mutate()} loading={createMut.isPending}>
               Далее
@@ -161,16 +177,26 @@ export default function CampaignCreatePage() {
               <p>Дубликатов: <strong>{uploadResult.duplicates}</strong></p>
             </div>
           )}
-          <p className="text-sm text-gray-500">
-            Система проверит каждый email: формат, существование домена, наличие ящика.
-          </p>
+          {skipValidation ? (
+            <div className="rounded-lg bg-yellow-50 p-4 text-sm text-gray-700">
+              Вы выбрали «Пропустить валидацию» — этот шаг можно пропустить.
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Система проверит каждый email: формат, существование домена, наличие ящика.
+              SMTP-проверка с VPS может ложно блокировать живые адреса — если не уверены,
+              просто пропустите шаг.
+            </p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setStep("variations")}>
               Пропустить
             </Button>
-            <Button onClick={() => validateMut.mutate()} loading={validateMut.isPending}>
-              <CheckCircle className="h-4 w-4" /> Запустить валидацию
-            </Button>
+            {!skipValidation && (
+              <Button onClick={() => validateMut.mutate()} loading={validateMut.isPending}>
+                <CheckCircle className="h-4 w-4" /> Запустить валидацию
+              </Button>
+            )}
           </div>
         </div>
       )}

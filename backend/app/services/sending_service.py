@@ -1,4 +1,5 @@
 import random
+import smtplib
 import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,47 @@ from app.services.smtp_service import send_email
 from app.utils.time_helpers import random_delay
 
 
+def _is_transient_smtp_error(exc: Exception) -> bool:
+    """Return True for errors that are worth retrying."""
+    msg = str(exc).lower()
+    if "timeout" in msg or "timed out" in msg:
+        return True
+    if "connection" in msg and ("reset" in msg or "refused" in msg or "unexpectedly closed" in msg):
+        return True
+    if isinstance(exc, smtplib.SMTPServerDisconnected):
+        return True
+    if isinstance(exc, smtplib.SMTPResponseException) and 400 <= exc.smtp_code < 500:
+        return True
+    return False
+
+
+def _send_with_retry(slot, contact_email: str, subject: str, body: str, max_attempts: int = 3) -> None:
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            send_email(
+                host=slot.mailbox.smtp_host,
+                port=slot.mailbox.smtp_port,
+                login=slot.mailbox.login,
+                password=slot.password,
+                use_tls=slot.mailbox.use_tls,
+                from_email=slot.mailbox.email,
+                to_email=contact_email,
+                subject=subject,
+                body_html=body,
+            )
+            return
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts and _is_transient_smtp_error(e):
+                time.sleep(2 ** attempt)
+                continue
+            raise
+
+    if last_error:
+        raise last_error
+
+
 def pick_variation(variations: list[TextVariation], index: int) -> TextVariation | None:
     if not variations:
         return None
@@ -24,13 +66,23 @@ def apply_iceberg(original_body: str, new_iceberg: str) -> str:
     parts = original_body.split("\n\n", 1)
     if len(parts) == 2:
         return new_iceberg + "\n\n" + parts[1]
-    return new_iceberg
+    return original_body
 
 
 async def send_campaign(db: AsyncSession, campaign_id: int, ws_broadcast=None):
     campaign = await db.get(Campaign, campaign_id)
     if not campaign:
         return
+
+    if campaign.skip_validation:
+        from sqlalchemy import update as sql_update
+        await db.execute(
+            sql_update(Contact)
+            .where(Contact.campaign_id == campaign_id, Contact.is_valid.is_(None))
+            .values(is_valid=True)
+        )
+        await db.commit()
+        await db.refresh(campaign)
 
     contacts = await get_pending_valid_contacts(db, campaign_id)
     if not contacts:
@@ -91,17 +143,7 @@ async def send_campaign(db: AsyncSession, campaign_id: int, ws_broadcast=None):
         )
 
         try:
-            send_email(
-                host=slot.mailbox.smtp_host,
-                port=slot.mailbox.smtp_port,
-                login=slot.mailbox.login,
-                password=slot.password,
-                use_tls=slot.mailbox.use_tls,
-                from_email=slot.mailbox.email,
-                to_email=contact.email,
-                subject=subject,
-                body_html=body,
-            )
+            _send_with_retry(slot, contact.email, subject, body)
             log.status = "sent"
             contact.status = "sent"
             campaign.sent_count += 1
@@ -122,7 +164,8 @@ async def send_campaign(db: AsyncSession, campaign_id: int, ws_broadcast=None):
                 "data": {
                     "sent": campaign.sent_count,
                     "failed": campaign.failed_count,
-                    "total": campaign.valid_contacts,
+                    "total": campaign.total_contacts,
+                    "valid": campaign.valid_contacts,
                     "current_mailbox": slot.mailbox.email,
                     "current_domain": slot.domain.name,
                     "last_contact": contact.email,

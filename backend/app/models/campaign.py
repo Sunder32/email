@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -34,6 +34,7 @@ class Campaign(Base, TimestampMixin):
     rotate_every_n: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     delay_min_sec: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
     delay_max_sec: Mapped[float] = mapped_column(Float, default=30.0, nullable=False)
+    skip_validation: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     started_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

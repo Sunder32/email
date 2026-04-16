@@ -92,15 +92,25 @@ async def stop_campaign(db: AsyncSession, campaign_id: int) -> CampaignRead:
 
 async def get_campaign_stats(db: AsyncSession, campaign_id: int) -> CampaignStats:
     campaign = await get_campaign(db, campaign_id)
-    remaining = campaign.valid_contacts - campaign.sent_count - campaign.failed_count
-    progress = (campaign.sent_count / campaign.valid_contacts * 100) if campaign.valid_contacts > 0 else 0.0
+    denominator = campaign.valid_contacts if campaign.valid_contacts > 0 else campaign.total_contacts
+    remaining = denominator - campaign.sent_count - campaign.failed_count
+    progress = (campaign.sent_count / denominator * 100) if denominator > 0 else 0.0
+
+    invalid_res = await db.execute(
+        select(func.count(Contact.id)).where(
+            Contact.campaign_id == campaign_id, Contact.is_valid == False
+        )
+    )
+    invalid_count = invalid_res.scalar() or 0
+
     return CampaignStats(
         total_contacts=campaign.total_contacts,
         valid_contacts=campaign.valid_contacts,
         sent_count=campaign.sent_count,
         failed_count=campaign.failed_count,
+        invalid_count=invalid_count,
         remaining=max(remaining, 0),
         progress_percent=round(progress, 2),
         elapsed_seconds=elapsed_seconds(campaign.started_at),
-        eta_seconds=calc_eta(campaign.sent_count, campaign.valid_contacts, campaign.started_at),
+        eta_seconds=calc_eta(campaign.sent_count, denominator, campaign.started_at),
     )

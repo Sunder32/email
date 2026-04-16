@@ -4,6 +4,7 @@ export interface Contact {
   email: string;
   is_valid: boolean | null;
   validation_error: string | null;
+  validation_error_label: string | null;
   status: string;
   created_at: string;
 }

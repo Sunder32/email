@@ -9,6 +9,7 @@ class ContactRead(BaseModel):
     email: str
     is_valid: bool | None
     validation_error: str | None
+    validation_error_label: str | None = None
     status: str
     created_at: datetime
 

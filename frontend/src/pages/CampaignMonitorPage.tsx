@@ -51,8 +51,9 @@ export default function CampaignMonitorPage() {
 
   const sent = progress.sent || campaign.sent_count;
   const failed = progress.failed || campaign.failed_count;
-  const total = progress.total || campaign.valid_contacts || campaign.total_contacts;
-  const pct = total > 0 ? Math.round((sent / total) * 100) : 0;
+  const total = progress.total || campaign.total_contacts;
+  const denom = campaign.valid_contacts > 0 ? campaign.valid_contacts : total;
+  const pct = denom > 0 ? Math.round((sent / denom) * 100) : 0;
 
   return (
     <div>
