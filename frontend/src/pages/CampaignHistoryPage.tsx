@@ -51,7 +51,11 @@ export default function CampaignHistoryPage() {
                   </td>
                   <td className="px-6 py-4">{formatNumber(c.sent_count)}</td>
                   <td className="px-6 py-4">{formatNumber(c.failed_count)}</td>
-                  <td className="px-6 py-4">{formatNumber(c.total_contacts)}</td>
+                  <td className="px-6 py-4">
+                    {c.valid_contacts > 0 && c.valid_contacts !== c.total_contacts
+                      ? `${formatNumber(c.valid_contacts)} / ${formatNumber(c.total_contacts)}`
+                      : formatNumber(c.total_contacts)}
+                  </td>
                   <td className="px-6 py-4 text-gray-500">{formatDate(c.created_at)}</td>
                 </tr>
               ))}

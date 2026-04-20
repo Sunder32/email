@@ -94,7 +94,7 @@ export default function CampaignMonitorPage() {
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
-        <MetricCard label="Отправлено" value={formatNumber(sent)} sub={`из ${formatNumber(total)}`} />
+        <MetricCard label="Отправлено" value={formatNumber(sent)} sub={`из ${formatNumber(denom)}`} />
         <MetricCard label="Ошибки" value={formatNumber(failed)} sub="" />
         <MetricCard label="Прогресс" value={`${pct}%`} sub="" />
         <MetricCard

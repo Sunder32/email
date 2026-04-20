@@ -168,7 +168,6 @@ async def send_campaign(db: AsyncSession, campaign_id: int):
             log.status = "sent"
             contact.status = "sent"
             campaign.sent_count += 1
-            slot.increment()
             await _increment_counters_atomic(db, slot.mailbox.id, slot.domain.id)
         except Exception as e:
             log.status = "failed"
@@ -177,15 +176,21 @@ async def send_campaign(db: AsyncSession, campaign_id: int):
             campaign.failed_count += 1
 
         db.add(log)
-        pool.advance()
+        if log.status == "sent":
+            pool.advance()
         await db.commit()
+
+        # Refresh counters from DB so can_send checks are accurate
+        if log.status == "sent":
+            await db.refresh(slot.mailbox)
+            await db.refresh(slot.domain)
 
         publish_campaign_event(campaign_id, {
             "type": "progress",
             "data": {
                 "sent": campaign.sent_count,
                 "failed": campaign.failed_count,
-                "total": campaign.total_contacts,
+                "total": campaign.valid_contacts if campaign.valid_contacts > 0 else campaign.total_contacts,
                 "valid": campaign.valid_contacts,
                 "current_mailbox": slot.mailbox.email,
                 "current_domain": slot.domain.name,
